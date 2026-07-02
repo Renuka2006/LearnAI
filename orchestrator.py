@@ -47,10 +47,11 @@ def terraform_init():
         exit(1)
     else:
         print("Terraform initialization completed successfully.")
+    return True, None
 
 def run_terraform_validation():
+    terraform_init()
     print("Running Terraform validation...")
-
     result = subprocess.run(["terraform", "validate"], capture_output=True, text=True)
     #print(result.stderr,result.stdout)
 
