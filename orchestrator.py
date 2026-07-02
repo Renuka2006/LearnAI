@@ -36,7 +36,7 @@ def ask_gemini_to_fix(broken_code, error_logs):
             temperature=0.1)
     )
     
-    return response.text
+    return response.parsed
 
 def run_terraform_validation():
     print("Running Terraform validation...")
@@ -96,5 +96,5 @@ if __name__ == "__main__":
         print("Terraform configuration has been fixed successfully.")
         commit_message = f"Automated fix applied to Terraform configuration."
         subprocess.run(["git", "add", "main.tf"])
-        subprocess.run(["git", "commit", "-m", commit_message])
+        subprocess.run(["git", "commit", "-am", commit_message])
         print("Changes have been committed to the repository.")
