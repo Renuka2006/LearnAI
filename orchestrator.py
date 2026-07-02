@@ -69,29 +69,29 @@ if __name__ == "__main__":
             print("Error: main.tf not found.")
             exit(1)
         success, logs = run_terraform_validation()
-        if not success:
-            #json_response = ask_gemini_to_fix(code, logs)
-            data = ask_gemini_to_fix(code, logs)
-            #print("\n--- AI RESPONSE CAPTURED---")
-            print("Explanation of the Issue:")
-            print("--------------------------------------------")
-            print(data.explanation)
-            print("--------------------------------------------")
-            print("Suggested Code Fix:")
-            print("--------------------------------------------")
-            print(data.fixed_code)
-            print("--------------------------------------------")
-            print("Rewriting 'main.tf' with the AI generated solution...")
-            with open("main.tf","w") as f:
-                f.write(data.fixed_code)
-            
-            print("Re-running Terraform validation after applying the fix...")
-            success, logs = run_terraform_validation()
-        else:
-            print("Terraform validation succeeded after applying the fix.")
-            fix_applied = True
-            fixed_successfully = True
+        if success:
+            if retry_count == 0:
+                print("Terraform configuration is valid. No fixes needed.")
+            else:
+                print("Terraform configuration is valid after applying the fix.")
             break
+
+        #json_response = ask_gemini_to_fix(code, logs)
+        data = ask_gemini_to_fix(code, logs)
+        #print("\n--- AI RESPONSE CAPTURED---")
+        print("Explanation of the Issue:")
+        print("--------------------------------------------")
+        print(data.explanation)
+        print("--------------------------------------------")
+        print("Suggested Code Fix:")
+        print("--------------------------------------------")
+        print(data.fixed_code)
+        print("--------------------------------------------")
+        print("Rewriting 'main.tf' with the AI generated solution...")
+        with open("main.tf","w") as f:
+            f.write(data.fixed_code)
+        fix_applied = True
+        fixed_successfully = True
         retry_count += 1
     if fix_applied and fixed_successfully:
         print("Terraform configuration has been fixed successfully.")
