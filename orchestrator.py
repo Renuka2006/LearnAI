@@ -92,6 +92,7 @@ if __name__ == "__main__":
             fix_applied = True
             fixed_successfully = True
             break
+        retry_count += 1
     if fix_applied and fixed_successfully:
         print("Terraform configuration has been fixed successfully.")
         commit_message = f"Automated fix applied to Terraform configuration."
