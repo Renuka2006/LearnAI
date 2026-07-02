@@ -37,6 +37,16 @@ def ask_gemini_to_fix(broken_code, error_logs):
     )
     
     return response.parsed
+def terraform_init():
+    print("Initializing Terraform...")
+    result = subprocess.run(["terraform", "init"], capture_output=True, text=True)
+    err_logs = result.stderr if result.stderr else result.stdout
+    if result.returncode != 0:
+        print("Terraform initialization failed. Please check the error messages below:")
+        print(err_logs)
+        exit(1)
+    else:
+        print("Terraform initialization completed successfully.")
 
 def run_terraform_validation():
     print("Running Terraform validation...")
@@ -96,6 +106,6 @@ if __name__ == "__main__":
     if fix_applied and fixed_successfully:
         print("Terraform configuration has been fixed successfully.")
         commit_message = f"Automated fix applied to Terraform configuration."
-        #subprocess.run(["git", "add", "main.tf"])
-        subprocess.run(["git", "commit", "-am", commit_message])
+        subprocess.run(["git", "add", "main.tf"])
+        subprocess.run(["git", "commit", "-m", commit_message])
         print("Changes have been committed to the repository.")
