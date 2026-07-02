@@ -95,6 +95,6 @@ if __name__ == "__main__":
     if fix_applied and fixed_successfully:
         print("Terraform configuration has been fixed successfully.")
         commit_message = f"Automated fix applied to Terraform configuration."
-        subprocess.run(["git", "add", "main.tf"])
+        #subprocess.run(["git", "add", "main.tf"])
         subprocess.run(["git", "commit", "-am", commit_message])
         print("Changes have been committed to the repository.")
