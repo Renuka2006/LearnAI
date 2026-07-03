@@ -78,6 +78,9 @@ def terraform_init(target_dir):
         print("Terraform initialization completed successfully.")
     return True, None
 
+def needs_init(target_dir):
+    return not os.path.isdir(os.path.join(target_dir, ".terraform"))
+
 def run_terraform_validation(target_dir):
     #terraform_init(target_dir)
     print(f"{target_dir} Running Terraform validation...")
@@ -103,8 +106,11 @@ def patch_dir(target_dir, max_retries=3):
         if not codebase_context:
             print(f"""No Terraform files found in the directory '{target_dir}'. Please ensure you are in the correct directory.""")
             return False, False
-        
-        init_success, logs = terraform_init(target_dir)
+        if needs_init(target_dir):
+            init_success, logs = terraform_init(target_dir)
+        else:
+            print(f"[{target_dir}] Terraform already initialized, skipping init.")
+            init_success, logs = True, None
         if init_success:
             validation_success, logs = run_terraform_validation(target_dir)
             is_config_valid = validation_success
