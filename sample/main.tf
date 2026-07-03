@@ -64,7 +64,7 @@ resource "aws_route_table_association" "RT_Associate_oregon" {
 }
 
 resource "aws_instance" "ec2_nginx" {
-  ami = "ami-0f5ee92e2d63a033e" # Amazon Linux 2 AMI for ap-south-1
+  #ami = "ami-0f5ee92e2d63a033e" # Amazon Linux 2 AMI for ap-south-1
   associate_public_ip_address = true
   instance_type = "t2.micro" # Uncommented and set to a valid instance type
   subnet_id = aws_subnet.subnet_oregon.id
