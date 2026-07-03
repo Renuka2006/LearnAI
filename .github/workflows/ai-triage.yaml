@@ -1,28 +1,55 @@
 name: automomous push
-on: [push]
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**/*.tf'
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-  triage:
+  review-and-patch:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.11
+          cache: 'pip'
       - name: Install Dependencies
+        run: pip install google-genai pydantic
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.7.6
+      - name: Create Terraform Plugin Cache Directory
         run: |
-          python -m pip install --upgrade pip
-          pip install google-genai pydantic
-          sudo apt-get update
-          wget -O- https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          #echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.org/noble main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com noble main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          sudo apt-get update && sudo apt-get install -y terraform
+          mkdir -p ~/.terraform.d/plugin-cache
+          echo "TF_PLUGIN_CACHE_DIR=~/.terraform.d/plugin-cache" >> $GITHUB_ENV
+      - name: Cache Terraform Plugins
+        uses: actions/cache@v4
+        with:
+          path: ~/.terraform.d/plugin-cache
+          key: ${{ runner.os }}-terraform-${{ hashFiles('**/.terraform.lock.hcl', '**/*.tf') }}
+          restore-keys: |
+            ${{ runner.os }}-terraform-
       - name: Run AI Agent Loop
         env:
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
         run: python orchestrator.py
+      - name: Push Fixes to PR Branch
+        run: |
+          if [ -n "$(git status --porcelain)" ] || [ "$(git cherry -v)" ]; then
+            echo "AI applied fixes. Pushing back to PR branch..."
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          else
+            echo "No fixes required. Code passes validation!"
+          fi

@@ -157,15 +157,19 @@ if __name__ == "__main__":
             break     
     if fixed_successfully and all_directories_passed:
         print("Terraform configuration has been fixed successfully.")
-        commit_message = "Automated multi-directory fix applied to Terraform configuration."
-        print(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
-        subprocess.run(["git", "add", "*.tf"])
+        commit_message = "AI Reviewer: Fixed syntax/validation errors across directories."
+        #print(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
+        subprocess.run(["git", "config", "user.name", "github-actions[bot]"])
+        subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
+        subprocess.run(["git", "add", "."])
         subprocess.run(["git", "commit", "-m", commit_message])
         print("Changes have been committed to the repository.")
     elif not all_directories_passed:
         print(latest_explanation)
         print("Please review the changes and fix any remaining issues manually.")
         if fix_applied:
-            print(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
-            subprocess.run(["git", "add", "*.tf"])
+            #print(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
+            subprocess.run(["git", "config", "user.name", "github-actions[bot]"])
+            subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"])
+            subprocess.run(["git", "add", "."])
             subprocess.run(["git", "commit", "-m", "Automated partial fix applied to Terraform configurations."])
