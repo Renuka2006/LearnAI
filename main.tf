@@ -103,7 +103,7 @@ resource "aws_security_group" "SG_Nginx" {
 
 resource "aws_vpc_security_group_ingress_rule" "http" {
   description = "Allows port 80"
-  security_group_id = aws_security_group.SG_Nginx.id
+  security_group_id = aws_security_group.SG_Nginx.id # Uncommented and fixed
   from_port = 80
   to_port = 80
   ip_protocol = "tcp"
