@@ -26,9 +26,12 @@ jobs:
       - name: Install Dependencies
         run: pip install google-genai pydantic
       - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v4
-        with:
-          terraform_version: 1.7.6
+        run: |
+          wget -q https://releases.hashicorp.com/terraform/1.7.6/terraform_1.7.6_linux_amd64.zip
+          unzip -q terraform_1.7.6_linux_amd64.zip
+          sudo mv terraform /usr/local/bin/
+          rm terraform_1.7.6_linux_amd64.zip
+          terraform -version  # Verify it installed correctly
       - name: Create Terraform Plugin Cache Directory
         run: |
           mkdir -p ~/.terraform.d/plugin-cache
