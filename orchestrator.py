@@ -1,6 +1,6 @@
 import subprocess
 import os
-import json
+#import json
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
@@ -113,10 +113,9 @@ def patch_dir(target_dir, max_retries=3):
         if is_config_valid:
             if retry_count > 0:
                 print(f"[{target_dir}] Terraform configuration is valid after applying the fix.")
-                return True, True
             else:
                 print(f"[{target_dir}] Terraform configuration is valid. No fixes needed.")
-                return True, True
+            return True, True
         print(f"\n[Attempt {retry_count + 1}/{max_retries + 1}] Fix required for '{target_dir}'...")
         data = ask_gemini_to_fix(codebase_context, logs, target_dir)
         print("Explanation of the Issue:")
@@ -129,8 +128,8 @@ def patch_dir(target_dir, max_retries=3):
                 f.write(edits.fixed_code)
         fix_applied = True
         retry_count += 1
-        print(f"[-] Failed to fix '{target_dir}' after {max_retries + 1} attempts.")
-        return False, fix_applied
+    print(f"[-] Failed to fix '{target_dir}' after {max_retries + 1} attempts.")
+    return False, fix_applied
 
 
 if __name__ == "__main__":
@@ -144,6 +143,8 @@ if __name__ == "__main__":
         success, fixed = patch_dir(tf_dir)
         if fixed:
             fix_applied = True
+        if success:
+            fixed_successfully = True
         if not success:
             all_directories_passed = False
             latest_explanation = f"Failed to fix Terraform configuration in '{tf_dir}'."
@@ -152,7 +153,6 @@ if __name__ == "__main__":
         print("Terraform configuration has been fixed successfully.")
         commit_message = "Automated multi-directory fix applied to Terraform configuration."
         subprocess.run(["git", "add", "."])
-        #ubprocess.run(["git", "add", "main.tf"])
         subprocess.run(["git", "commit", "-m", commit_message])
         print("Changes have been committed to the repository.")
     elif not all_directories_passed:
