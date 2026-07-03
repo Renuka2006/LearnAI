@@ -4,21 +4,50 @@ import json
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
+import glob
+from typing import List
 
+class FileEdit(BaseModel):
+    filepath: str
+    fixed_code: str
 
 class TerraformFix(BaseModel):
     explanation: str
-    fixed_code: str
+    #fixed_code: str
+    edits: List[FileEdit]
 
-def ask_gemini_to_fix(broken_code, error_logs):
-    print("Sending the logs to Gemini for analysis and fix...")
+def find_tf_files():
+    tf_dirs = set()
+    for tf_file in glob.glob("**/*.tf", recursive=True):
+        if ".terraform" in tf_file or ".git" in tf_file:
+            continue
+        dirname = os.path.dirname(tf_file)
+        tf_dirs.add(dirname if dirname else ".")
+    return sorted(list(tf_dirs))
+
+def load_all_tf_files(target_dir):
+    tf_contents = []
+    search_path = os.path.join(target_dir, "**/*.tf")
+    for filepath in glob.glob(search_path, recursive=True):
+        try:
+            with open(filepath, "r") as f:
+                content = f.read()
+                tf_contents.append(f"filepath: {filepath}----\n----{content}\n----")
+        except Exception as e:
+            print(f"Warning: Error reading {filepath}: {e}")   
+    return "\n\n".join(tf_contents)
+
+def ask_gemini_to_fix(entire_codebase, error_logs, target_dir):
+    print(f"[{target_dir}] Sending the logs to Gemini for analysis and fix...")
     client = genai.Client()
     system_instruction = ("You are an expert Site Reliability Engineer and automated patching agent. "
                           "Your job is to analyze broken Terraform configurations and logs, determine the root cause, "
                           "and provide the corrected codebase. Do not provide conversational responses outside the requested schema.")
     user_prompt = f"""The following Terraform code is failing validation:
     ---
-    {broken_code}
+    {target_dir}
+    ---
+    {entire_codebase}
     ---
     Here is the exact terminal error log:
     ---
@@ -35,24 +64,24 @@ def ask_gemini_to_fix(broken_code, error_logs):
             response_schema=TerraformFix,
             temperature=0.1)
     )
-    
     return response.parsed
-def terraform_init():
-    print("Initializing Terraform...")
-    result = subprocess.run(["terraform", "init"], capture_output=True, text=True)
+
+def terraform_init(target_dir):
+    print(f"[{target_dir}] Running 'terraform init'...")
+    result = subprocess.run(["terraform", "init"], cwd=target_dir, capture_output=True, text=True)
     err_logs = result.stderr if result.stderr else result.stdout
     if result.returncode != 0:
-        print("Terraform initialization failed. Please check the error messages below:")
+        print(f"Terraform initialization failed in {target_dir}. Please check the error messages below:")
         print(err_logs)
         exit(1)
     else:
         print("Terraform initialization completed successfully.")
     return True, None
 
-def run_terraform_validation():
-    terraform_init()
-    print("Running Terraform validation...")
-    result = subprocess.run(["terraform", "validate"], capture_output=True, text=True)
+def run_terraform_validation(target_dir):
+    #terraform_init(target_dir)
+    print(f"{target_dir} Running Terraform validation...")
+    result = subprocess.run(["terraform", "validate"], cwd=target_dir, capture_output=True, text=True)
     #print(result.stderr,result.stdout)
 
     if result.returncode != 0:
@@ -63,50 +92,72 @@ def run_terraform_validation():
     print("TF Validation has Passed!!!")
     return True, None
 
-
-
-if __name__ == "__main__":
-
-    MAX_RETRIES = 3
+def patch_dir(target_dir, max_retries=3):
     retry_count = 0
     fix_applied = False
-    latest_explanation = ""
     fixed_successfully = False
-    while retry_count <= MAX_RETRIES:
-        try:
-            with open("main.tf", "r") as f:
-                code = f.read()
-        except FileNotFoundError:
-            print("Error: main.tf not found.")
-            exit(1)
-        success, logs = run_terraform_validation()
-        if success:
-            if retry_count == 0:
-                print("Terraform configuration is valid. No fixes needed.")
-            else:
-                print("Terraform configuration is valid after applying the fix.")
-            break
+    print(f"\n=========================================\nProcessing Directory: {target_dir}\n=========================================")
 
-        #json_response = ask_gemini_to_fix(code, logs)
-        data = ask_gemini_to_fix(code, logs)
-        #print("\n--- AI RESPONSE CAPTURED---")
+    while retry_count <= max_retries:
+        codebase_context =load_all_tf_files(target_dir)
+        if not codebase_context:
+            print(f"""No Terraform files found in the directory '{target_dir}'. Please ensure you are in the correct directory.""")
+            return False, False
+        
+        init_success, logs = terraform_init(target_dir)
+        if init_success:
+            validation_success, logs = run_terraform_validation(target_dir)
+            is_config_valid = validation_success
+        else:
+            is_config_valid = False
+        if is_config_valid:
+            if retry_count > 0:
+                print(f"[{target_dir}] Terraform configuration is valid after applying the fix.")
+                return True, True
+            else:
+                print(f"[{target_dir}] Terraform configuration is valid. No fixes needed.")
+                return True, True
+        print(f"\n[Attempt {retry_count + 1}/{max_retries + 1}] Fix required for '{target_dir}'...")
+        data = ask_gemini_to_fix(codebase_context, logs, target_dir)
         print("Explanation of the Issue:")
         print("--------------------------------------------")
         print(data.explanation)
         print("--------------------------------------------")
-        print("Suggested Code Fix:")
-        print("--------------------------------------------")
-        print(data.fixed_code)
-        print("--------------------------------------------")
-        print("Rewriting 'main.tf' with the AI generated solution...")
-        with open("main.tf","w") as f:
-            f.write(data.fixed_code)
+        for edits in data.edits:
+            print(f"Rewriting '{edits.filepath}' with the AI generated solution...")
+            with open(edits.filepath, "w") as f:
+                f.write(edits.fixed_code)
         fix_applied = True
-        fixed_successfully = True
         retry_count += 1
-    if fix_applied and fixed_successfully:
+        print(f"[-] Failed to fix '{target_dir}' after {max_retries + 1} attempts.")
+        return False, fix_applied
+
+
+if __name__ == "__main__":
+    terraform_directories = find_tf_files()
+    print(f"Found Terraform configurations in: {terraform_directories}")
+    fix_applied = False
+    all_directories_passed = True
+    latest_explanation = ""
+    fixed_successfully = False
+    for tf_dir in terraform_directories:
+        success, fixed = patch_dir(tf_dir)
+        if fixed:
+            fix_applied = True
+        if not success:
+            all_directories_passed = False
+            latest_explanation = f"Failed to fix Terraform configuration in '{tf_dir}'."
+            break     
+    if fixed_successfully and all_directories_passed:
         print("Terraform configuration has been fixed successfully.")
-        commit_message = f"Automated fix applied to Terraform configuration."
-        subprocess.run(["git", "add", "main.tf"])
+        commit_message = "Automated multi-directory fix applied to Terraform configuration."
+        subprocess.run(["git", "add", "."])
+        #ubprocess.run(["git", "add", "main.tf"])
         subprocess.run(["git", "commit", "-m", commit_message])
         print("Changes have been committed to the repository.")
+    elif not all_directories_passed:
+        print(latest_explanation)
+        print("Please review the changes and fix any remaining issues manually.")
+        if fix_applied:
+            subprocess.run(["git", "add", "."])
+            subprocess.run(["git", "commit", "-m", "Automated partial fix applied to Terraform configurations."])
