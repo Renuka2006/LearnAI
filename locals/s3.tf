@@ -17,7 +17,7 @@ resource "random_id" "s3_random_id" {
 
 resource "aws_s3_bucket" "local_S3" {
 
-  bucket = "${local.project}-${random_id.s3_random_id.hex}"
+  #bucket = "${local.project}-${random_id.s3_random_id.hex}"
   tags = merge(local.common_tags,{
     Name = "hello"
     project = local.project

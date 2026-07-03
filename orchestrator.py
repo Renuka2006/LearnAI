@@ -159,5 +159,5 @@ if __name__ == "__main__":
         print(latest_explanation)
         print("Please review the changes and fix any remaining issues manually.")
         if fix_applied:
-            subprocess.run(["git", "add", "."])
+            subprocess.run(["git", "add", "*.tf"])
             subprocess.run(["git", "commit", "-m", "Automated partial fix applied to Terraform configurations."])
