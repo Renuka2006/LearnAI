@@ -158,12 +158,14 @@ if __name__ == "__main__":
     if fixed_successfully and all_directories_passed:
         print("Terraform configuration has been fixed successfully.")
         commit_message = "Automated multi-directory fix applied to Terraform configuration."
-        subprocess.run(["git", "add", "."])
+        print(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
+        subprocess.run(["git", "add", "*.tf"])
         subprocess.run(["git", "commit", "-m", commit_message])
         print("Changes have been committed to the repository.")
     elif not all_directories_passed:
         print(latest_explanation)
         print("Please review the changes and fix any remaining issues manually.")
         if fix_applied:
+            print(subprocess.run(["git", "status"], capture_output=True, text=True).stdout)
             subprocess.run(["git", "add", "*.tf"])
             subprocess.run(["git", "commit", "-m", "Automated partial fix applied to Terraform configurations."])
