@@ -1,7 +1,7 @@
 resource "aws_instance" "ec2_nginx" {
   ami = "ami-08c7263b3c75ca130" #Nginx AMI referred from AWS console 
   associate_public_ip_address = true
-  #instance_type = "t2.micro"
+  instance_type = "t2.micro"
   subnet_id = aws_subnet.subnet_oregon.id
   vpc_security_group_ids = [ aws_security_group.SG_Nginx.id ]
   root_block_device {
